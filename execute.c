@@ -27,8 +27,9 @@ int execute(char *argv[])
 	int * FOutPos = (int*)malloc(sizeof(int));
 	int FOutSize  = 0;
 
-	int * FInPos = (int*)malloc(sizeof(int));
-	int FInSize  = 0;
+	int * FInPos  = (int*)malloc(sizeof(int));
+	int FInSize   = 0;
+	
 
 	int Fptr;
 
@@ -66,8 +67,8 @@ int execute(char *argv[])
 
 	if (isPipe == 0)
 	{
-		int	pid ;
-		int	child_info = -1;
+		int	pid;
+		int	child_info  = -1;
 		
 		//fails if no args
 		if ( argv[0] == NULL )
@@ -126,26 +127,40 @@ int execute(char *argv[])
 		pipe(firstPipe);
 		pipe(secondPipe);
 		
-		int alternate = 0;
+		int alternate 	= 0;
+		int nextFIn     = 0;
+		int nextFOut    = 0;
 
 		char ** commands;
 	
 		for (int i = 0; i < pipeSize + 1; i++)
 		{
 
-			int delete = 0;
+			int delete  = 0;
+			int hasFOut = 0;
+			int hasFIn  = 0;
+
 			int process = fork();
 
 			if (process == 0)
 			{
 				if (i == 0)
 				{
+					printf("First command\n");
 					commands = (char**)malloc( (pipePos[0] * sizeof(char*)) + sizeof(char*) );
 					
 					for (int j = 0; j < pipePos[0]; j++)
 					{
+						if (*argv[j] == '<')
+						{
+							hasFIn = 1;
+						}
+				
+						if (*argv[j] == '>')
+						{
+							hasFOut = 1;
+						}
 						commands[j] = argv[j];
-
 						delete++;
 					}
 					commands[pipePos[0]] = NULL;
@@ -153,7 +168,7 @@ int execute(char *argv[])
 					dup2(firstPipe[1],STDOUT_FILENO);
 					close(firstPipe[0]);
 
-					if (isFIn == 1)
+					if (hasFIn == 1)
 					{
 						commands[FInPos[0]] = NULL;
 						Fptr = open(commands[pipePos[0]-1], O_RDONLY | O_CREAT, S_IRWXU);
@@ -165,22 +180,59 @@ int execute(char *argv[])
 				
 				if (i > 0 && i + 1 != pipeSize + 1)
 				{
-
+					printf("Mid command\n");
 					commands = (char**)malloc( ( ((pipePos[i] - 1) - pipePos[i - 1]) * sizeof(char*) ) + sizeof(char*) );
-
 
 					for (int j = 0; j < pipePos[i] - pipePos[i - 1] - 1; j++)
 					{
+						if (*argv[j] == '<')
+						{
+							hasFIn  = 1;
+						}
+				
+						if (*argv[j] == '>')
+						{
+							hasFOut  = 1;
+						}
+
 						commands[j] = argv[pipePos[i - 1] + j + 1];
 						delete++;
 					}
 					commands[pipePos[i] - pipePos[i - 1]] = NULL;
+					
+					for (int j = 0; j < pipePos[i]; j++)
+					{
+						if (*argv[j] == '<')
+						{
+							nextFIn++;
+						}
+				
+						if (*argv[j] == '>')
+						{
+							nextFOut++;
+						}
+					}
 
+					if (hasFIn == 1)
+					{
+						printf("%d - %d = %d\n",pipePos[i],FInPos[nextFIn-1],(pipePos[i]) - FInPos[nextFIn-2]);
+						printf("FIn = %d\n",nextFIn-1);
+						printf("cell: %d has: %s\n",(pipePos[i]) - FInPos[nextFIn-1],commands[(pipePos[i]) - FInPos[nextFIn-1]]);
+							
+						commands[(pipePos[i] - 1) - FInPos[nextFIn-1]] = NULL;
+						
+						Fptr = open(commands[(pipePos[i]) - FInPos[nextFIn-1]], O_RDONLY | O_CREAT, S_IRWXU);
+						dup2(Fptr,STDIN_FILENO);
+					}
+					
 					if (alternate % 2 != 0)
 					{
-						dup2(firstPipe[0],STDIN_FILENO);
-						close(firstPipe[1]);
-
+						if (hasFIn == 0)
+						{
+							dup2(firstPipe[0],STDIN_FILENO);
+							close(firstPipe[1]);
+						}
+						
 						dup2(secondPipe[1],STDOUT_FILENO);
 						close(secondPipe[0]);
 						
@@ -188,8 +240,11 @@ int execute(char *argv[])
 					}
 					else
 					{
-						dup2(secondPipe[0],STDIN_FILENO);
-						close(secondPipe[1]);
+						if (hasFIn == 0)
+						{
+							dup2(secondPipe[0],STDIN_FILENO);
+							close(secondPipe[1]);
+						}
 
 						dup2(firstPipe[1],STDOUT_FILENO);
 						close(firstPipe[0]);
@@ -200,18 +255,29 @@ int execute(char *argv[])
 				
 				if (i + 1 == pipeSize + 1)
 				{
+					printf("Last command\n");
 					commands = (char**)malloc( ( ((length) - pipePos[i - 1]) * sizeof(char*) ) + sizeof(char*) );
 
 					for (int j = 0; j < (length - 1) - pipePos[i - 1]; j++)
 					{
+						if (*argv[j] == '<')
+						{
+							hasFIn = 1;
+							nextFIn++;
+						}
+				
+						if (*argv[j] == '>')
+						{
+							hasFOut = 1;
+							nextFOut++;
+						}
 						commands[j] = argv[pipePos[i - 1] + j + 1];
-
 						delete++;
 					}
 
-					commands[(length) - pipePos[i - 1]] = NULL;
+					commands[(length) - pipePos[i - 1] - 1] = NULL;
 
-					if (isFOut == 1)
+					if (hasFOut == 1)
 					{       
 						commands[(length) - pipePos[i - 1] - 3] = NULL;
 						Fptr = open(commands[(length) - pipePos[i - 1] - 2], O_WRONLY | O_CREAT, S_IRWXU);
