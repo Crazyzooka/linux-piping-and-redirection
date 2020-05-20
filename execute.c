@@ -30,7 +30,6 @@ int execute(char *argv[])
 	int FInSize  = 0;
 
 	int Fptr;
-	int Fptr2;
 
 	while (argv[length] != NULL)
 	{
@@ -214,8 +213,8 @@ int execute(char *argv[])
 					if (isFOut == 1)
 					{       
 						commands[(length) - pipePos[i - 1] - 3] = NULL;
-						Fptr2 = open(commands[FOutPos[0]+1], O_WRONLY | O_CREAT/*, S_IRWXU*/);
-						dup2(Fptr2,STDOUT_FILENO);
+						Fptr = open(commands[(length) - pipePos[i - 1] - 2], O_WRONLY | O_CREAT/*, S_IRWXU*/);
+						dup2(Fptr,STDOUT_FILENO);
 					}
 
 					if (alternate % 2 != 0)
