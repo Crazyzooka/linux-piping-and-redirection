@@ -5,6 +5,7 @@
 #include	<unistd.h>
 #include	<signal.h>
 #include	<sys/wait.h>	
+#include	<sys/stat.h>
 #include	<fcntl.h>
 
 /*
@@ -87,7 +88,7 @@ int execute(char *argv[])
 			if (isFOut == 1 && isFIn == 0)
 			{       
 				argv[1] = NULL;
-				Fptr = open(argv[FOutPos[0]+1], O_WRONLY | O_CREAT/*, S_IRWXU*/);
+				Fptr = open(argv[FOutPos[0]+1], O_WRONLY | O_CREAT, S_IRWXU);
 				dup2(Fptr,STDOUT_FILENO);
 				
 				execvp(argv[0], argv);
@@ -96,7 +97,7 @@ int execute(char *argv[])
 			if (isFIn == 1 && isFOut == 0)
 			{
 				argv[1] = NULL;
-				Fptr = open(argv[FInPos[0]+1], O_RDONLY | O_CREAT/*, S_IRWXU*/);
+				Fptr = open(argv[FInPos[0]+1], O_RDONLY | O_CREAT, S_IRWXU);
 				dup2(Fptr,STDIN_FILENO);
 
 				execvp(argv[0], argv);
@@ -155,7 +156,7 @@ int execute(char *argv[])
 					if (isFIn == 1)
 					{
 						commands[FInPos[0]] = NULL;
-						Fptr = open(commands[pipePos[0]-1], O_RDONLY | O_CREAT/*, S_IRWXU*/);
+						Fptr = open(commands[pipePos[0]-1], O_RDONLY | O_CREAT, S_IRWXU);
 						dup2(Fptr,STDIN_FILENO);
 					}
 					
