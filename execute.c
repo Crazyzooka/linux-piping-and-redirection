@@ -213,7 +213,7 @@ int execute(char *argv[])
 					if (isFOut == 1)
 					{       
 						commands[(length) - pipePos[i - 1] - 3] = NULL;
-						Fptr = open(commands[(length) - pipePos[i - 1] - 2], O_WRONLY | O_CREAT/*, S_IRWXU*/);
+						Fptr = open(commands[(length) - pipePos[i - 1] - 2], O_WRONLY | O_CREAT, S_IRWXU);
 						dup2(Fptr,STDOUT_FILENO);
 					}
 
