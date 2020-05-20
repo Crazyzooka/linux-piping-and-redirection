@@ -17,7 +17,7 @@ int execute(char *argv[])
 {
 	int length    = 0;
 	int isPipe    = 0;
-	int isFIn     = 0;
+	//int isFIn     = 0;
 	int isFOut    = 0;
 
 	int * pipePos = (int*)malloc(sizeof(int));
@@ -47,11 +47,11 @@ int execute(char *argv[])
 
 			FOutSize++;
 		}
-
+		/*
 		if (*argv[length] == '<')
 		{
 			isFIn = 1;
-		}
+		}*/
 
 		length++;
 	}
@@ -60,8 +60,6 @@ int execute(char *argv[])
 	{
 		int	pid ;
 		int	child_info = -1;
-		int	bufPipe[2];
-		pipe(bufPipe);
 		
 		//fails if no args
 		if ( argv[0] == NULL )
@@ -76,15 +74,13 @@ int execute(char *argv[])
 		}
 		else if ( pid == 0 )
 		{
-			//signal(SIGINT, SIG_DFL);
-			//signal(SIGQUIT, SIG_DFL);
+			signal(SIGINT, SIG_DFL);
+			signal(SIGQUIT, SIG_DFL);
 			
 			if (isFOut == 1)
 			{       
-				printf("cmd wants output to file\n");
 				argv[1] = NULL;
-
-				Fptr = open(argv[FOutPos[0]+1], O_WRONLY | O_CREAT, S_IRWXU);
+				Fptr = open(argv[FOutPos[0]+1], O_WRONLY | O_CREAT/*, S_IRWXU*/);
 				dup2(Fptr,STDOUT_FILENO);
 				
 				execvp(argv[0], argv);
@@ -108,19 +104,6 @@ int execute(char *argv[])
 			{
 				dup2(STDOUT_FILENO,Fptr);
 				close(Fptr);
-				/*
-				dup2(STDOUT_FILENO,bufPipe[1]);
-				close(bufPipe[0]);
-				
-				dup2(bufPipe[0],STDIN_FILENO);
-				close(bufPipe[1]);
-				
-				Fptr = fopen(argv[FOutPos[0]+1],"w");
-				fwrite(bufPipe[0],
-				fclose(Fptr);
-
-				dup2(STDIN_FILENO,bufPipe[0]);
-				close(bufPipe[0]);*/
 			}		
 		}
 		
