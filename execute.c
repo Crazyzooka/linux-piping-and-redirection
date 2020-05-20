@@ -104,6 +104,32 @@ int execute(char *argv[])
 				execvp(argv[0], argv);
 			}
 
+			if (isFIn == 1 && isFOut == 1)
+			{
+				char ** temp = (char**)malloc( 3 * sizeof(char*) );
+				if (FInPos[0] < FOutPos[0])
+				{
+					Fptr = open(argv[FOutPos[0]+1], O_WRONLY | O_CREAT, S_IRWXU);
+					dup2(Fptr,STDOUT_FILENO);
+
+					temp[0] = "cat";
+					temp[1] = argv[FInPos[0]+1];
+					temp[2] = NULL;
+			
+				}
+				else
+				{
+					Fptr = open(argv[FInPos[0]+1], O_WRONLY | O_CREAT, S_IRWXU);
+					dup2(Fptr,STDOUT_FILENO);
+
+					temp[0] = "cat";
+					temp[1] = argv[FOutPos[0]+1];
+					temp[2] = NULL;
+				}
+
+				execvp(temp[0],temp);
+			}
+
 			execvp(argv[0], argv);
 
 			perror("cannot execute command");
@@ -146,7 +172,7 @@ int execute(char *argv[])
 			{
 				if (i == 0)
 				{
-					printf("First command\n");
+					//printf("First command\n");
 					commands = (char**)malloc( (pipePos[0] * sizeof(char*)) + sizeof(char*) );
 					
 					for (int j = 0; j < pipePos[0]; j++)
@@ -180,7 +206,7 @@ int execute(char *argv[])
 				
 				if (i > 0 && i + 1 != pipeSize + 1)
 				{
-					printf("Mid command\n");
+					//printf("Mid command\n");
 					commands = (char**)malloc( ( ((pipePos[i] - 1) - pipePos[i - 1]) * sizeof(char*) ) + sizeof(char*) );
 
 					for (int j = 0; j < pipePos[i] - pipePos[i - 1] - 1; j++)
@@ -198,7 +224,6 @@ int execute(char *argv[])
 						commands[j] = argv[pipePos[i - 1] + j + 1];
 						delete++;
 					}
-					commands[pipePos[i] - pipePos[i - 1]] = NULL;
 					
 					for (int j = 0; j < pipePos[i]; j++)
 					{
@@ -213,18 +238,58 @@ int execute(char *argv[])
 						}
 					}
 
-					if (hasFIn == 1)
+					if (hasFIn == 1 && hasFOut == 0)
 					{
-						printf("%d - %d = %d\n",pipePos[i],FInPos[nextFIn-1],(pipePos[i]) - FInPos[nextFIn-2]);
-						printf("FIn = %d\n",nextFIn-1);
-						printf("cell: %d has: %s\n",(pipePos[i]) - FInPos[nextFIn-1],commands[(pipePos[i]) - FInPos[nextFIn-1]]);
+						//printf("%d - %d = %d\n",pipePos[i],FInPos[nextFIn-1],(pipePos[i]) - FInPos[nextFIn-2]);
+						//printf("FIn = %d\n",nextFIn-1);
+						//printf("cell: %d has: %s\n",(pipePos[i]) - FInPos[nextFIn-1],commands[(pipePos[i]) - FInPos[nextFIn-1]]);
 							
 						commands[(pipePos[i] - 1) - FInPos[nextFIn-1]] = NULL;
 						
 						Fptr = open(commands[(pipePos[i]) - FInPos[nextFIn-1]], O_RDONLY | O_CREAT, S_IRWXU);
 						dup2(Fptr,STDIN_FILENO);
 					}
+
+					if (hasFIn == 0 && hasFOut == 1)
+					{
+						//printf("%d - %d = %d\n",pipePos[i],FInPos[nextFIn-1],(pipePos[i]) - FInPos[nextFIn-2]);
+						//printf("FOut = %d\n",nextFIn-1);
+						//printf("cell: %d has: %s\n",(pipePos[i]) - FInPos[nextFIn-1],commands[(pipePos[i]) - FInPos[nextFIn-1]]);
+							
+						commands[(pipePos[i] - 1) - FOutPos[nextFOut-1]] = NULL;
+						
+						Fptr = open(commands[(pipePos[i]) - FOutPos[nextFOut-1]], O_RDONLY | O_CREAT, S_IRWXU);
+						dup2(Fptr,STDOUT_FILENO);
+					}
+
+					if (hasFIn == 1 && hasFOut == 1)
+					{
+						char ** temp = (char**)malloc( 3 * sizeof(char*) );
+						if (FInPos[nextFIn-1] < FOutPos[nextFOut-1])
+						{
+							Fptr = open(commands[(pipePos[i]) - FOutPos[nextFOut-1]], O_WRONLY | O_CREAT, S_IRWXU);
+							dup2(Fptr,STDOUT_FILENO);
+
+							temp[0] = "cat";
+							temp[1] = commands[(pipePos[i]) - FInPos[nextFIn-1]];
+							temp[2] = NULL;
 					
+						}
+						else
+						{
+							Fptr = open(commands[(pipePos[i]) - FInPos[nextFIn-1]], O_WRONLY | O_CREAT, S_IRWXU);
+							dup2(Fptr,STDOUT_FILENO);
+
+							temp[0] = "cat";
+							temp[1] = commands[(pipePos[i]) - FOutPos[nextFOut-1]];
+							temp[2] = NULL;
+						}
+
+						execvp(temp[0],temp);
+					}
+					
+					commands[pipePos[i] - pipePos[i - 1]] = NULL;
+
 					if (alternate % 2 != 0)
 					{
 						if (hasFIn == 0)
@@ -233,8 +298,11 @@ int execute(char *argv[])
 							close(firstPipe[1]);
 						}
 						
-						dup2(secondPipe[1],STDOUT_FILENO);
-						close(secondPipe[0]);
+						if (hasFOut == 0)
+						{
+							dup2(secondPipe[1],STDOUT_FILENO);
+							close(secondPipe[0]);
+						}
 						
 						execvp(commands[0],commands);
 					}
@@ -246,8 +314,11 @@ int execute(char *argv[])
 							close(secondPipe[1]);
 						}
 
-						dup2(firstPipe[1],STDOUT_FILENO);
-						close(firstPipe[0]);
+						if (hasFOut == 0)
+						{
+							dup2(firstPipe[1],STDOUT_FILENO);
+							close(firstPipe[0]);
+						}
 						
 						execvp(commands[0],commands);
 					}
@@ -255,7 +326,7 @@ int execute(char *argv[])
 				
 				if (i + 1 == pipeSize + 1)
 				{
-					printf("Last command\n");
+					//printf("Last command\n");
 					commands = (char**)malloc( ( ((length) - pipePos[i - 1]) * sizeof(char*) ) + sizeof(char*) );
 
 					for (int j = 0; j < (length - 1) - pipePos[i - 1]; j++)
