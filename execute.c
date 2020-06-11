@@ -133,7 +133,7 @@ int execute(char *argv[])
 		
 		return child_info;
 	}
-	else
+	/*
 	{
 		int firstPipe[2];
 		int secondPipe[2];
@@ -405,5 +405,5 @@ int execute(char *argv[])
 				}
 			}	
 		}
-	}
+	}*/
 }
