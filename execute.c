@@ -106,8 +106,6 @@ int execute(char *argv[])
 
 			if (isFIn == 1 && isFOut == 1)
 			{
-				printf("cmd wants input from file, then output to file\n");
-
 				argv[1] = NULL;
 				argv[3] = NULL;
 
@@ -151,7 +149,6 @@ int execute(char *argv[])
 	
 		for (int i = 0; i < pipeSize + 1; i++)
 		{
-
 			int delete  = 0;
 			int hasFOut = 0;
 			int hasFIn  = 0;
@@ -184,11 +181,30 @@ int execute(char *argv[])
 					dup2(firstPipe[1],STDOUT_FILENO);
 					close(firstPipe[0]);
 
-					if (hasFIn == 1)
+					if (hasFIn == 1 && hasFOut == 0)
 					{
 						commands[FInPos[0]] = NULL;
-						Fptr0 = open(commands[pipePos[0]-1], O_RDONLY | O_CREAT, S_IRWXU);
+						Fptr0 = open(commands[FInPos[0]+1], O_RDONLY | O_CREAT, S_IRWXU);
 						dup2(Fptr0,STDIN_FILENO);
+					}
+
+					if (hasFIn == 0 && hasFOut == 1)
+					{
+						commands[FOutPos[0]] = NULL;
+						Fptr1 = open(commands[FOutPos[0]+1], O_WRONLY | O_CREAT, S_IRWXU);
+						dup2(Fptr1,STDOUT_FILENO);
+					}
+
+					if (hasFIn == 1 && hasFOut == 1)
+					{
+						commands[FInPos[0]] = NULL;
+						commands[FOutPos[0]] = NULL;
+
+						Fptr0 = open(commands[FInPos[0]+1], O_RDONLY | O_CREAT, S_IRWXU);
+						dup2(Fptr0,STDIN_FILENO);
+
+						Fptr1 = open(commands[FOutPos[0]+1], O_WRONLY | O_CREAT, S_IRWXU);
+						dup2(Fptr1,STDIN_FILENO);
 					}
 					
 					execvp(commands[0],commands);
@@ -248,34 +264,20 @@ int execute(char *argv[])
 							
 						commands[(pipePos[i] - 1) - FOutPos[nextFOut-1]] = NULL;
 						
-						Fptr1 = open(commands[(pipePos[i]) - FOutPos[nextFOut-1]], O_RDONLY | O_CREAT, S_IRWXU);
+						Fptr1 = open(commands[(pipePos[i]) - FOutPos[nextFOut-1]], O_WRONLY | O_CREAT, S_IRWXU);
 						dup2(Fptr1,STDOUT_FILENO);
 					}
 
 					if (hasFIn == 1 && hasFOut == 1)
 					{
-						char ** temp = (char**)malloc( 3 * sizeof(char*) );
-						if (FInPos[nextFIn-1] < FOutPos[nextFOut-1])
-						{
-							Fptr1 = open(commands[(pipePos[i]) - FOutPos[nextFOut-1]], O_WRONLY | O_CREAT, S_IRWXU);
-							dup2(Fptr1,STDOUT_FILENO);
+						argv[(pipePos[i]) - FOutPos[nextFOut-2]] = NULL;
+						argv[(pipePos[i]) - FInPos[nextFIn-2]] = NULL;
 
-							temp[0] = "cat";
-							temp[1] = commands[(pipePos[i]) - FInPos[nextFIn-1]];
-							temp[2] = NULL;
-					
-						}
-						else
-						{
-							Fptr1 = open(commands[(pipePos[i]) - FInPos[nextFIn-1]], O_WRONLY | O_CREAT, S_IRWXU);
-							dup2(Fptr1,STDOUT_FILENO);
+						Fptr1 = open(commands[(pipePos[i]) - FOutPos[nextFOut-1]], O_WRONLY | O_CREAT, S_IRWXU);
+						Fptr0 = open(commands[(pipePos[i]) - FInPos[nextFIn-1]], O_RDONLY, S_IRWXU);
 
-							temp[0] = "cat";
-							temp[1] = commands[(pipePos[i]) - FOutPos[nextFOut-1]];
-							temp[2] = NULL;
-						}
-
-						execvp(temp[0],temp);
+						dup2(Fptr1,STDOUT_FILENO);
+						dup2(Fptr0,STDIN_FILENO);
 					}
 					
 					commands[pipePos[i] - pipePos[i - 1]] = NULL;
