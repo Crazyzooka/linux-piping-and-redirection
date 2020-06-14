@@ -4,9 +4,8 @@
 #include	<stdlib.h>
 #include	<unistd.h>
 #include	<signal.h>
-#include	<sys/wait.h>	
+#include	<sys/wait.h>
 #include	<sys/stat.h>
-#include	<fcntl.h>
 
 /*
  * purpose: run a program passing it arguments
@@ -30,8 +29,8 @@ int execute(char *argv[])
 	int * FInPos  = (int*)malloc(sizeof(int));
 	int FInSize   = 0;
 
-	int Fptr0;
-	int Fptr1;
+	FILE * Fptr0;
+	FILE * Fptr1;
 
 	while (argv[length] != NULL)
 	{
@@ -42,7 +41,7 @@ int execute(char *argv[])
 			pipePos[pipeSize] = length;
 
 			pipeSize++;
-		}	
+		}
 
 		if (*argv[length] == '>')
 		{
@@ -52,7 +51,7 @@ int execute(char *argv[])
 
 			FOutSize++;
 		}
-		
+
 		if (*argv[length] == '<')
 		{
 			isFIn = 1;
@@ -69,13 +68,13 @@ int execute(char *argv[])
 	{
 		int	pid;
 		int	child_info  = -1;
-		
+
 		//fails if no args
 		if ( argv[0] == NULL )
 		{
 			return 0;
 		}
-		
+
 		//create fork here
 		if ( (pid = fork())  == -1 )
 		{
@@ -85,21 +84,19 @@ int execute(char *argv[])
 		{
 			signal(SIGINT, SIG_DFL);
 			signal(SIGQUIT, SIG_DFL);
-			
+
 			if (isFOut == 1 && isFIn == 0)
-			{       
+			{
 				argv[1] = NULL;
-				Fptr1 = open(argv[FOutPos[0]+1], O_WRONLY | O_CREAT, S_IRWXU);
-				dup2(Fptr1,STDOUT_FILENO);
-				
+				Fptr1 = freopen(argv[FOutPos[0]+1], "w", stdout);
+
 				execvp(argv[0], argv);
 			}
-			
+
 			if (isFIn == 1 && isFOut == 0)
 			{
 				argv[1] = NULL;
-				Fptr0 = open(argv[FInPos[0]+1], O_RDONLY | O_CREAT, S_IRWXU);
-				dup2(Fptr0,STDIN_FILENO);
+				Fptr0 = freopen(argv[FInPos[0]+1], "r",stdin);
 
 				execvp(argv[0], argv);
 			}
@@ -109,11 +106,8 @@ int execute(char *argv[])
 				argv[1] = NULL;
 				argv[3] = NULL;
 
-				Fptr1 = open(argv[FOutPos[0]+1], O_WRONLY | O_CREAT, S_IRWXU);
-				Fptr0 = open(argv[FInPos[0]+1], O_RDONLY, S_IRWXU);
-
-				dup2(Fptr1,STDOUT_FILENO);
-				dup2(Fptr0,STDIN_FILENO);
+				Fptr1 = freopen(argv[FOutPos[0]+1], "w",stdout);
+				Fptr0 = freopen(argv[FInPos[0]+1], "r",stdin);
 
 				execvp(argv[0], argv);
 			}
@@ -123,30 +117,30 @@ int execute(char *argv[])
 			perror("cannot execute command");
 			exit(1);
 		}
-		else 
+		else
 		{
 			if ( wait(&child_info) == -1 )
 			{
 				perror("wait");
 			}
 		}
-		
+
 		return child_info;
 	}
-	/*
+	else
 	{
 		int firstPipe[2];
 		int secondPipe[2];
-		
+
 		pipe(firstPipe);
 		pipe(secondPipe);
-		
+
 		int alternate 	= 0;
 		int nextFIn     = 0;
 		int nextFOut    = 0;
 
 		char ** commands;
-	
+
 		for (int i = 0; i < pipeSize + 1; i++)
 		{
 			int delete  = 0;
@@ -161,14 +155,14 @@ int execute(char *argv[])
 				{
 					//printf("First command\n");
 					commands = (char**)malloc( (pipePos[0] * sizeof(char*)) + sizeof(char*) );
-					
+
 					for (int j = 0; j < pipePos[0]; j++)
 					{
 						if (*argv[j] == '<')
 						{
 							hasFIn = 1;
 						}
-				
+
 						if (*argv[j] == '>')
 						{
 							hasFOut = 1;
@@ -184,15 +178,13 @@ int execute(char *argv[])
 					if (hasFIn == 1 && hasFOut == 0)
 					{
 						commands[FInPos[0]] = NULL;
-						Fptr0 = open(commands[FInPos[0]+1], O_RDONLY | O_CREAT, S_IRWXU);
-						dup2(Fptr0,STDIN_FILENO);
+						Fptr0 = freopen(commands[FInPos[0]+1], "r",stdin);
 					}
 
 					if (hasFIn == 0 && hasFOut == 1)
 					{
 						commands[FOutPos[0]] = NULL;
-						Fptr1 = open(commands[FOutPos[0]+1], O_WRONLY | O_CREAT, S_IRWXU);
-						dup2(Fptr1,STDOUT_FILENO);
+						Fptr1 = freopen(commands[FOutPos[0]+1], "w",stdout);
 					}
 
 					if (hasFIn == 1 && hasFOut == 1)
@@ -200,16 +192,13 @@ int execute(char *argv[])
 						commands[FInPos[0]] = NULL;
 						commands[FOutPos[0]] = NULL;
 
-						Fptr0 = open(commands[FInPos[0]+1], O_RDONLY | O_CREAT, S_IRWXU);
-						dup2(Fptr0,STDIN_FILENO);
-
-						Fptr1 = open(commands[FOutPos[0]+1], O_WRONLY | O_CREAT, S_IRWXU);
-						dup2(Fptr1,STDIN_FILENO);
+						Fptr0 = freopen(commands[FInPos[0]+1], "r",stdin);
+						Fptr1 = freopen(commands[FOutPos[0]+1], "w",stdout);
 					}
-					
+
 					execvp(commands[0],commands);
 				}
-				
+
 				if (i > 0 && i + 1 != pipeSize + 1)
 				{
 					//printf("Mid command\n");
@@ -221,7 +210,7 @@ int execute(char *argv[])
 						{
 							hasFIn  = 1;
 						}
-				
+
 						if (*argv[j] == '>')
 						{
 							hasFOut  = 1;
@@ -230,14 +219,14 @@ int execute(char *argv[])
 						commands[j] = argv[pipePos[i - 1] + j + 1];
 						delete++;
 					}
-					
+
 					for (int j = 0; j < pipePos[i]; j++)
 					{
 						if (*argv[j] == '<')
 						{
 							nextFIn++;
 						}
-				
+
 						if (*argv[j] == '>')
 						{
 							nextFOut++;
@@ -249,11 +238,10 @@ int execute(char *argv[])
 						//printf("%d - %d = %d\n",pipePos[i],FInPos[nextFIn-1],(pipePos[i]) - FInPos[nextFIn-2]);
 						//printf("FIn = %d\n",nextFIn-1);
 						//printf("cell: %d has: %s\n",(pipePos[i]) - FInPos[nextFIn-1],commands[(pipePos[i]) - FInPos[nextFIn-1]]);
-							
+
 						commands[(pipePos[i] - 1) - FInPos[nextFIn-1]] = NULL;
-						
-						Fptr0 = open(commands[(pipePos[i]) - FInPos[nextFIn-1]], O_RDONLY | O_CREAT, S_IRWXU);
-						dup2(Fptr0,STDIN_FILENO);
+
+						Fptr0 = freopen(commands[(pipePos[i]) - FInPos[nextFIn-1]], "r",stdin);
 					}
 
 					if (hasFIn == 0 && hasFOut == 1)
@@ -261,11 +249,10 @@ int execute(char *argv[])
 						//printf("%d - %d = %d\n",pipePos[i],FInPos[nextFIn-1],(pipePos[i]) - FInPos[nextFIn-2]);
 						//printf("FOut = %d\n",nextFIn-1);
 						//printf("cell: %d has: %s\n",(pipePos[i]) - FInPos[nextFIn-1],commands[(pipePos[i]) - FInPos[nextFIn-1]]);
-							
+
 						commands[(pipePos[i] - 1) - FOutPos[nextFOut-1]] = NULL;
-						
-						Fptr1 = open(commands[(pipePos[i]) - FOutPos[nextFOut-1]], O_WRONLY | O_CREAT, S_IRWXU);
-						dup2(Fptr1,STDOUT_FILENO);
+
+						Fptr1 = freopen(commands[(pipePos[i]) - FOutPos[nextFOut-1]], "w",stdout);
 					}
 
 					if (hasFIn == 1 && hasFOut == 1)
@@ -273,13 +260,10 @@ int execute(char *argv[])
 						argv[(pipePos[i]) - FOutPos[nextFOut-2]] = NULL;
 						argv[(pipePos[i]) - FInPos[nextFIn-2]] = NULL;
 
-						Fptr1 = open(commands[(pipePos[i]) - FOutPos[nextFOut-1]], O_WRONLY | O_CREAT, S_IRWXU);
-						Fptr0 = open(commands[(pipePos[i]) - FInPos[nextFIn-1]], O_RDONLY, S_IRWXU);
-
-						dup2(Fptr1,STDOUT_FILENO);
-						dup2(Fptr0,STDIN_FILENO);
+						Fptr1 = freopen(commands[(pipePos[i]) - FOutPos[nextFOut-1]], "w",stdout);
+						Fptr0 = freopen(commands[(pipePos[i]) - FInPos[nextFIn-1]], "r",stdin);
 					}
-					
+
 					commands[pipePos[i] - pipePos[i - 1]] = NULL;
 
 					if (alternate % 2 != 0)
@@ -289,13 +273,13 @@ int execute(char *argv[])
 							dup2(firstPipe[0],STDIN_FILENO);
 							close(firstPipe[1]);
 						}
-						
+
 						if (hasFOut == 0)
 						{
 							dup2(secondPipe[1],STDOUT_FILENO);
 							close(secondPipe[0]);
 						}
-						
+
 						execvp(commands[0],commands);
 					}
 					else
@@ -311,11 +295,11 @@ int execute(char *argv[])
 							dup2(firstPipe[1],STDOUT_FILENO);
 							close(firstPipe[0]);
 						}
-						
+
 						execvp(commands[0],commands);
 					}
 				}
-				
+
 				if (i + 1 == pipeSize + 1)
 				{
 					//printf("Last command\n");
@@ -328,7 +312,7 @@ int execute(char *argv[])
 							hasFIn = 1;
 							nextFIn++;
 						}
-				
+
 						if (*argv[j] == '>')
 						{
 							hasFOut = 1;
@@ -341,31 +325,30 @@ int execute(char *argv[])
 					commands[(length) - pipePos[i - 1] - 1] = NULL;
 
 					if (hasFOut == 1)
-					{       
+					{
 						commands[(length) - pipePos[i - 1] - 3] = NULL;
-						Fptr1 = open(commands[(length) - pipePos[i - 1] - 2], O_WRONLY | O_CREAT, S_IRWXU);
-						dup2(Fptr1,STDOUT_FILENO);
+						Fptr1 = freopen(commands[(length) - pipePos[i - 1] - 2], "w",stdout);
 					}
 
 					if (alternate % 2 != 0)
 					{
 						dup2(firstPipe[0],STDIN_FILENO);
 						close(firstPipe[1]);
-						
+
 						execvp(commands[0],commands);
 					}
 					else
 					{
 						dup2(secondPipe[0],STDIN_FILENO);
 						close(secondPipe[1]);
-						
+
 						execvp(commands[0],commands);
 					}
-				}				
+				}
 			}
 			else
 			{
-				wait(NULL);	
+				wait(NULL);
 
 				if (i == 0)
 				{
@@ -403,7 +386,7 @@ int execute(char *argv[])
 						pipe(secondPipe);
 					}
 				}
-			}	
+			}
 		}
-	}*/
+	}
 }
