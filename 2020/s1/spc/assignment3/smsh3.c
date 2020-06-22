@@ -29,7 +29,7 @@ int main()
 	while ( (cmdline = next_cmd(prompt, stdin)) != NULL )
 	{
 		if ( (arglist = splitline(cmdline)) != NULL  )
-		{	
+		{
 			result = execute(arglist);
 			freelist(arglist);
 		}
